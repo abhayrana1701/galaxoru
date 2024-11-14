@@ -1,5 +1,6 @@
 import 'dart:io';
-
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
@@ -126,7 +127,45 @@ class _AddPostState extends State<AddPost> {
     );
   }
 
+  final FlutterSecureStorage storage = FlutterSecureStorage();
+  // Function to get JWT token
+  Future<String?> getToken() async {
+    return await storage.read(key: 'jwt_token');
+  }
 
+  // Post creation function
+  Future<void> postNewPost() async {
+    final token = await getToken();
+    if (token == null) {
+      print("No JWT token found.");
+      return;
+    }
+
+    // Prepare request with caption and images
+    final uri = Uri.parse("http://localhost:3000/add-post"); // Your API URL
+    final request = http.MultipartRequest("POST", uri)
+      ..headers['Authorization'] = 'Bearer $token'
+      ..fields['caption'] = postController.text;
+
+    // Attach images to the request
+    if (_imageFiles != null) {
+      for (var file in _imageFiles!) {
+        request.files.add(await http.MultipartFile.fromPath('images', file.path));
+      }
+    }
+
+    // Send request and handle response
+    final response = await request.send();
+    if (response.statusCode == 201) {
+      print("Post created successfully!");
+      setState(() {
+        postController.text="";
+        _imageFiles=[];
+      });
+    } else {
+      print("Error creating post: ${response.statusCode}");
+    }
+  }
 
 
   @override
@@ -326,15 +365,59 @@ class _AddPostState extends State<AddPost> {
           ),
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Container(
-              alignment: Alignment.center,
-              width:MediaQuery.of(context).size.width,
-              height:40,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.all(Radius.circular(5)),
-                color: Color.fromRGBO(145, 0, 255, 1),
+            child: GestureDetector(
+              onTap: (){
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (BuildContext context) {
+                    return Dialog(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Container(
+
+                        padding: EdgeInsets.all(20),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Transform.scale(
+                              scale: 2, // Adjust the scale factor to increase the animation size
+                              child: SizedBox(
+                                width: 100, // Set a smaller width for the SizedBox
+                                height: 100, // Set a smaller height for the SizedBox
+                                child: Lottie.asset(
+                                  'assets/uploading.json', // Replace with your animation path
+                                  repeat: true,
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: 20),
+                            Text(
+                              "Posting...",
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+                Future.delayed(Duration(seconds: 3), () {
+                  postNewPost(); // Call the post creation function
+                  Navigator.of(context).pop(); // Close the loading dialog
+                });
+              },
+              child: Container(
+                alignment: Alignment.center,
+                width:MediaQuery.of(context).size.width,
+                height:40,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.all(Radius.circular(5)),
+                  color: Color.fromRGBO(145, 0, 255, 1),
+                ),
+                child:Text("Post",style: TextStyle(color: Colors.white),),
               ),
-              child:Text("Post",style: TextStyle(color: Colors.white),),
             ),
           ),
         ],

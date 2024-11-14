@@ -46,6 +46,15 @@ dependencies:
   image_picker:
   carousel_slider:
   circle_wheel_scroll:
+  readmore:
+  flutter_secure_storage:
+  intl:
+  loading_animation_widget:
+  font_awesome_flutter:
+  mime:
+  http_parser:
+  sqflite:
+  path_provider:
 
 dev_dependencies:
   flutter_test:

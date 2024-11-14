@@ -1,7 +1,11 @@
+import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-
+import 'dart:typed_data';
 import 'authService.dart';
+import 'databaseHelper.dart';
 import 'screen2.dart';
 import 'signup.dart';
 
@@ -22,10 +26,68 @@ class _SigninState extends State<Signin> {
     final response = await authService.signin(emailController.text, passwordController.text);
 
     if (response.statusCode == 200) {
-      Navigator.of(context).push(MaterialPageRoute(builder: (context) => Screen2(),));
+      fetchUserProfile().then((value) {
+        print("done");
+        Navigator.of(context).push(MaterialPageRoute(builder: (context) => Screen2(),));
+      },);
+
     } else {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Signin failed')));
+    }
+  }
+
+  Future<Map<String, dynamic>?> fetchUserProfile() async {
+    final FlutterSecureStorage storage = FlutterSecureStorage();
+    String? token = await storage.read(key: 'jwt_token');
+    final url = Uri.parse('http://localhost:3000/profile');
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        // Parse the response data
+        final profileData = json.decode(response.body);
+
+        // Extract data from the response
+        String username = profileData['fname'] ?? ''; // Changed to match backend response
+        String title = profileData['title'] ?? 'None';
+        Uint8List? profilePic;
+
+        // If there's a profile picture, fetch and store it as a Uint8List
+        String? profilePicPath = profileData['profilePic'];
+        if (profilePicPath != null && profilePicPath.isNotEmpty) {
+          // Ensure profilePicPath is a complete URL with a leading slash
+          final profilePicUrl = Uri.parse('http://localhost:3000/$profilePicPath');
+
+          // Check if the URL is valid (i.e., the full URL is properly formed)
+          final profilePicResponse = await http.get(profilePicUrl);
+          if (profilePicResponse.statusCode == 200) {
+            profilePic = profilePicResponse.bodyBytes;
+          }
+        }
+
+        // Save or update the data in the database
+        final dbHelper = DatabaseHelper();
+        await dbHelper.createUser(username);
+        await dbHelper.updateTitle(title);
+        if (profilePic != null) {
+          await dbHelper.updateProfilePic(profilePic);
+        }
+
+        return profileData;
+      } else {
+        print('Failed to load profile: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('Error occurred while fetching profile: $e');
+      return null;
     }
   }
 

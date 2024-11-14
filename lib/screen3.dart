@@ -1,8 +1,16 @@
+import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
-
+import 'package:intl/intl.dart';
+import 'package:lottie/lottie.dart';
+import 'package:readmore/readmore.dart';
+import 'package:carousel_slider/carousel_options.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'addPost.dart';
+import 'package:http/http.dart' as http;
 
 class Screen3 extends StatefulWidget {
   const Screen3({super.key});
@@ -47,13 +55,13 @@ class _Screen3State extends State<Screen3> {
 
     // Categories with real image URLs
     final List<Map<String, String>> categories = [
-      {"title": "Business", "imageUrl": "https://images.unsplash.com/photo-1507679799987-c73779587ccf"},
-      {"title": "Tech", "imageUrl": "https://images.unsplash.com/photo-1518770660439-4636190af475"},
-      {"title": "Lifestyle", "imageUrl": "https://images.unsplash.com/photo-1541534401786-599c6409a3e3"},
-      {"title": "Health", "imageUrl": "https://images.unsplash.com/photo-1505751172876-fa1923c5c528"},
-      {"title": "Sports", "imageUrl": "https://images.unsplash.com/photo-1508609349937-5ec4ae374ebf"},
-      {"title": "Entertainment", "imageUrl": "https://images.unsplash.com/photo-1519659522779-db325d5b8b40"},
-      {"title": "Travel", "imageUrl": "https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0"},
+      {"title": "Business", "image": "business.jpg"},
+      {"title": "Tech", "image": "tech.jpg"},
+      {"title": "Lifestyle", "image": "lifestyle.jpg"},
+      {"title": "Health", "image": "health.jpg"},
+      {"title": "Sports", "image": "sports.jpg"},
+      {"title": "Entertainment", "image": "entertainment.png"},
+      {"title": "Travel", "image": "travel.jpg"},
     ];
 
     showDialog(
@@ -125,7 +133,7 @@ class _Screen3State extends State<Screen3> {
                                       ClipRRect(
                                         borderRadius: BorderRadius.circular(8),
                                         child: Image.asset(
-                                          "assets/profile.jpg",
+                                          "assets/${category['image']!}",
                                           width: 50,
                                           height: 50,
                                           fit: BoxFit.cover,
@@ -186,7 +194,64 @@ class _Screen3State extends State<Screen3> {
         );
       },
     );
+    setState(() {
+      expandTopics=false;
+    });
   }
+
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    fetchPosts();
+  }
+
+  List<dynamic> posts = []; // List to store fetched posts
+  // Fetch posts from the server
+  Future<void> fetchPosts() async {
+    try {
+      final response = await http.get(Uri.parse('http://localhost:3000/posts')); // Update with your API URL
+
+      if (response.statusCode == 200) {
+        setState(() {
+          posts = jsonDecode(response.body); // Assuming response is a JSON array of posts
+        });
+      } else {
+        print("Failed to load posts.");
+      }
+    } catch (error) {
+      print("Error fetching posts: $error");
+    }
+  }
+
+
+  /// Helper function to format the date based on conditions.
+  String formatPostTime(String postTimestamp) {
+    DateTime postDate = DateTime.parse(postTimestamp);
+    DateTime now = DateTime.now();
+
+    Duration difference = now.difference(postDate);
+
+    if (difference.inDays == 0) {
+      // Same day, show "X hours ago" or "X minutes ago"
+      if (difference.inHours > 0) {
+        return '${difference.inHours} hours ago';
+      } else if (difference.inMinutes > 0) {
+        return '${difference.inMinutes} minutes ago';
+      } else {
+        return 'Just now';
+      }
+    } else if (now.year == postDate.year) {
+      // Within the current year, show "7 Nov"
+      return DateFormat('d MMM').format(postDate);
+    } else {
+      // Different year, show "7 Nov 2023"
+      return DateFormat('d MMM yyyy').format(postDate);
+    }
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -398,16 +463,230 @@ class _Screen3State extends State<Screen3> {
 
               Text("Spotlight Picks",style: TextStyle(color: Colors.white,fontSize: 20),),
 
-              SizedBox(height:15),
-              Container(
-                width:MediaQuery.of(context).size.width*0.7,
-                height:150,
-                decoration: BoxDecoration(
-                  color:Colors.red,
-                  borderRadius: BorderRadius.all(Radius.circular(20)),
+              // SizedBox(height:15),
+              // Container(
+              //   width:MediaQuery.of(context).size.width*0.7,
+              //   height:150,
+              //   decoration: BoxDecoration(
+              //     color:Colors.red,
+              //     borderRadius: BorderRadius.all(Radius.circular(20)),
+              //   ),
+              //   child: ClipRRect(borderRadius: BorderRadius.circular(20),child: Image(image: AssetImage("assets/node.png"),fit: BoxFit.cover,)),
+              // ),
+
+              SizedBox(height:20),
+
+              ListView.builder(
+                itemCount: posts.length,
+                shrinkWrap: true,  // Ensures the ListView only takes as much space as it needs
+                physics: NeverScrollableScrollPhysics(),  // Disable scrolling for the ListView as the parent SingleChildScrollView already handles scrolling
+                  itemBuilder: (context, index) {
+                    dynamic post=posts[index];
+                    String postTime = formatPostTime(post['createdAt']);
+                    return Column(
+                      children: [
+                        Container(
+                          width:MediaQuery.of(context).size.width,
+                          decoration: BoxDecoration(
+                              border: Border.all(color:Color.fromRGBO(145, 0, 255, 1),),
+                              borderRadius: BorderRadius.all(Radius.circular(10))
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    CircleAvatar(
+                                      backgroundColor: Colors.white,
+                                      radius: 20,
+                                      child: CircleAvatar(
+                                        radius: 19,
+                                        backgroundColor: Colors.black,
+                                        child: ClipOval(child: Image(image: AssetImage("assets/profileaa.jpg"))),
+                                      ),
+                                    ),
+                                    SizedBox(width: 5),
+                                    Expanded( // Allows the Column to take available space
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween, // Pushes content to ends
+                                            children: [
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(
+                                                    "Abhay Rana",
+                                                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                                  ),
+                                                  SizedBox(width: 5),
+                                                  CircleAvatar(
+                                                    backgroundColor: Color.fromRGBO(145, 0, 255, 1),
+                                                    radius: 2,
+                                                  ),
+                                                  SizedBox(width: 5),
+                                                  Text(
+                                                    postTime,
+                                                    style: TextStyle(color: Colors.white),
+                                                  ),
+                                                ],
+                                              ),
+                                              Icon(Icons.more_horiz, color: Colors.white), // Placed at the far right
+                                            ],
+                                          ),
+                                          Text(
+                                            "App Developer",
+                                            style: TextStyle(color: Colors.white),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+
+                                SizedBox(height:15),
+
+                                ReadMoreText(
+                                  //"Today i am making my Galaxor project. it is space themed. I like space very much. My dream is to discover aliens and their technology. I want to explore other planets. I want to build my space ships. Exploring uinverse and uncovering its mysteries is my dream. I want to search planets far far away.",
+                                  post['caption'] ?? "",
+                                  style: TextStyle(color: Colors.white),
+                                  trimLines: 5,
+                                  trimCollapsedText: "read more",
+                                  trimExpandedText: 'read less',
+                                  lessStyle: TextStyle(color: Color.fromRGBO(145, 0, 255, 1),),
+                                  moreStyle: TextStyle(color: Color.fromRGBO(145, 0, 255, 1),),
+                                ),
+                                if(post['images'] != null && post['images'].isNotEmpty)
+                                SizedBox(height:15),
+                                post['images'] != null && post['images'].isNotEmpty
+                                    ? CarouselSlider(
+                                  items: post['images'].map<Widget>((imagePath){
+                                    return Builder(
+                                      builder: (BuildContext context) {
+                                        return Stack(
+                                          children: [
+                                            Container(
+                                              width: MediaQuery.of(context).size.width,
+                                              margin: EdgeInsets.symmetric(horizontal: 5.0),
+                                              alignment: Alignment.center,
+                                              decoration: BoxDecoration(
+                                                color: Colors.grey[300],
+                                                borderRadius: BorderRadius.circular(10),
+                                              ),
+                                              child:Image.network(
+                                                'http://localhost:3000/$imagePath', // Update with your image URL
+                                                //fit: BoxFit.cover,
+                                              ),
+                                            ),
+                                            Positioned(
+                                              top: 10,
+                                              right: 10,
+                                              child: Container(
+                                                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                                decoration: BoxDecoration(
+                                                    color: Colors.black.withOpacity(0.5),
+                                                    borderRadius: BorderRadius.all(Radius.circular(15))
+                                                ),
+                                                child: Text(
+                                                  "${1}/${post['images'].length}",
+                                                  style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 12
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    );
+                                  }).toList(),
+                                  options: CarouselOptions(
+                                    height: 180.0,
+                                    enlargeCenterPage: true,
+                                    autoPlay: true,
+                                    aspectRatio: 16 / 9,
+                                    autoPlayCurve: Curves.fastOutSlowIn,
+                                    enableInfiniteScroll: true,
+                                    autoPlayAnimationDuration: Duration(milliseconds: 800),
+                                    viewportFraction: 0.8,
+                                  ),
+                                ):Container(),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        // Like button
+                                        IconButton(
+                                          onPressed: () {
+                                            // Add your like action here
+                                          },
+                                          icon: Icon(CupertinoIcons.heart),
+                                          color: Colors.purpleAccent,
+                                          iconSize: 20,
+                                          splashRadius: 2,
+                                          padding: EdgeInsets.zero, // Ensure no extra padding
+                                        ),
+
+                                        // Comment button
+                                        IconButton(
+                                          onPressed: () {
+                                            // Add your comment action here
+                                          },
+                                          icon: Icon(CupertinoIcons.chat_bubble_text_fill),
+                                          color: Colors.cyanAccent,
+                                          iconSize: 20,
+                                          splashRadius: 20,
+                                        ),
+                                      ],
+                                    ),
+
+
+                                    // Share button
+                                    IconButton(
+                                      onPressed: () {
+                                        // Add your share action here
+                                      },
+                                      icon: Icon(CupertinoIcons.share),
+                                      color: Colors.greenAccent,
+                                      iconSize: 20,
+                                      splashRadius: 20,
+                                    ),
+                                  ],
+                                ),
+
+                              ],
+                            ),
+                          ),
+                        ),
+                        SizedBox(height:20)
+                      ],
+                    );
+                  },
+              ),
+              Align(
+                alignment: Alignment.center,
+                child: Transform.scale(
+                  scale: 2,
+                  child: Container(
+                    height:60,
+                    child: Lottie.asset(
+                      'assets/loading_planet.json', // Replace with your animation path
+                      repeat: true,
+                    ),
+                  ),
                 ),
-                child: ClipRRect(borderRadius: BorderRadius.circular(20),child: Image(image: AssetImage("assets/node.png"),fit: BoxFit.cover,)),
-              )
+              ),
+              SizedBox(height:80),
+
             ],
           ),
         ),

@@ -1,9 +1,11 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'databaseHelper.dart';
 import 'profile.dart';
 import 'screen1.dart';
 import 'screen3.dart';
 import 'package:elastic_drawer/elastic_drawer.dart';
+import 'dart:typed_data';
 
 class Screen2 extends StatefulWidget {
   const Screen2({super.key});
@@ -20,10 +22,25 @@ class _Screen2State extends State<Screen2> with SingleTickerProviderStateMixin {
   List options=["Home","Qurious","Elemental","My Posts","About","Log Out"];
   int oldIndex=0;
 
+  late List<Map<String, dynamic>> _userData;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this); // Initialize the controller
+    // Fetch user data from the database
+    _fetchUserData();
+  }
+
+  // Function to fetch user data
+  void _fetchUserData() async {
+    // Fetch the data
+    final userData = await DatabaseHelper().getUserInfo();
+
+    // Update the UI once data is fetched
+    setState(() {
+      _userData = userData;
+    });
   }
 
   @override
@@ -38,6 +55,13 @@ class _Screen2State extends State<Screen2> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+
+    // Assuming you have only one user and you're displaying the first one
+    final user = _userData.first;
+
+    // Getting the profile picture from the database and handling null case
+    Uint8List? profilePicBytes = user['profilePic'];
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: NestedScrollView(
@@ -54,19 +78,21 @@ class _Screen2State extends State<Screen2> with SingleTickerProviderStateMixin {
                 children: [
                   GestureDetector(
                     onTap: (){
-                      Navigator.of(context).push(MaterialPageRoute(builder: (context) => Profile(),));
+                      Navigator.of(context).push(MaterialPageRoute(builder: (context) => Profile(userData: _userData,),)).then(
+                        (value) {
+                          setState(() {
+                            _fetchUserData();
+                          });
+                        },
+                      );
                     },
                     child: Row(
                       children: [
                         CircleAvatar(
-                          child: ClipOval(
-                            child: Image.asset(
-                              "assets/profile.jpg",
-                              fit: BoxFit.cover,
-                              width: 40,
-                              height: 40,
-                            ),
-                          ),
+                          backgroundColor: Colors.black,
+                          backgroundImage: profilePicBytes != null
+                              ? MemoryImage(profilePicBytes)
+                              : AssetImage('assets/profile.jpg') as ImageProvider,  // Placeholder image,
                         ),
                         SizedBox(width: 10),
                         Column(
@@ -74,7 +100,7 @@ class _Screen2State extends State<Screen2> with SingleTickerProviderStateMixin {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              "Abhay Rana",
+                              user['username'],
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -82,7 +108,7 @@ class _Screen2State extends State<Screen2> with SingleTickerProviderStateMixin {
                               ),
                             ),
                             Text(
-                              "App Developer",
+                              user['title']!=null?user['title']:"--",
                               style: TextStyle(color: Colors.white, fontSize: 12),
                             ),
                           ],

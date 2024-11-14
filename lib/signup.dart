@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
 import 'authService.dart';
+import 'databaseHelper.dart';
 import 'screen2.dart';
 import 'signin.dart';
 
@@ -29,6 +30,12 @@ class _SignupState extends State<Signup> {
     );
 
     if (response.statusCode == 201) {
+
+    // Create an instance of DatabaseHelper
+    final dbHelper = DatabaseHelper();
+    // Call the createUser function and pass the username
+    await dbHelper.createUser(fnameController.text.toString()+" "+lnameController.text.toString());
+
       Navigator.of(context).push(MaterialPageRoute(builder: (context) => Screen2(),));
     } else {
       Navigator.pop(context);
